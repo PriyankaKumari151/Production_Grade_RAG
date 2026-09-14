@@ -8,7 +8,7 @@ Version 0.0 implements a **Naive RAG** approach. The primary goal of this versio
 
 ## Architecture Diagram
 
-![Version 0.0 Architecture Diagram](./assets/RAG-V0-architecture.png)
+![Version 0.0 Architecture Diagram](../assets/RAG-V0-architecture.png)
 _(Note: Replace the path above with the link to your generated architecture diagram)_
 
 The Version 0.0 pipeline follows a linear, single-pass ingestion and retrieval flow:
