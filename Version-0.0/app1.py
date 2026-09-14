@@ -17,7 +17,7 @@ print("Loading document...\n")
 
 #1 PARSING: Extract raw text from the PDF
 # Using a relative path with forward slashes (best practice)
-loader = PyPDFLoader("../Source-Documents/PFMEA_Rev_01.pdf")
+loader = PyPDFLoader("../FDA-MAUDE/10.1177_20552076251314094.pdf")
 documents = loader.load()
 
 #2 CHUNKING: Split text blindly by character count
@@ -74,9 +74,12 @@ rag_chain = (
 )
 
 #7. EXECUTE QUERY
-user_query = "What is the recommended action associated with the process Enclosure Tray Stamping (Al 5083-H111)"
-print(f"\nQuerying: {user_query}")
-response = rag_chain.invoke(user_query)
 
-print("\nResponse:")
-print(response)
+while True:
+    user_query = input("Enter the query: ")
+    if user_query=="exit":
+        print("\nByee!!")
+        break
+    else:
+        response = rag_chain.invoke(user_query)
+        print(f"\nResponse: {response}")
