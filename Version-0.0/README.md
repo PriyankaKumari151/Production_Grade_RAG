@@ -9,7 +9,7 @@ Version 0.0 implements a **Naive RAG** approach. The primary goal of this versio
 ## Architecture Diagram
 
 ![Version 0.0 Architecture Diagram](../assets/RAG-V0-architecture.png)
-_(Note: Replace the path above with the link to your generated architecture diagram)_
+*(Note: Replace the path above with the link to your generated architecture diagram)*
 
 The Version 0.0 pipeline follows a linear, single-pass ingestion and retrieval flow:
 
@@ -26,36 +26,19 @@ The Version 0.0 pipeline follows a linear, single-pass ingestion and retrieval f
 
 This version prioritizes speed, zero-cost tooling, and local data privacy for the embeddings.
 
-- **Orchestration Framework:** `LangChain` (v0.2+)
-- **Document Parsing:** `PyPDFLoader` (Extracts raw, unformatted text coordinates)
-- **Chunking Strategy:** `RecursiveCharacterTextSplitter` (Blind character counting)
-- **Embedding Model:** `HuggingFaceEmbeddings` (`BAAI/bge-small-en-v1.5`) - Runs 100% locally on CPU to protect proprietary engineering data.
-- **Vector Database:** `Chroma DB` - Runs locally, storing embeddings in a persistent directory without requiring cloud infrastructure.
-- **LLM Inference:** `Groq` (`openai/gpt-oss-20b`) - Delivers lightning-fast, free cloud inference via custom LPU chips.
+- **Orchestration Framework:** `LangChain` (v0.2+)[cite: 2]
+- **Document Parsing:** `PyPDFLoader` (Extracts raw, unformatted text coordinates)[cite: 2]
+- **Chunking Strategy:** `RecursiveCharacterTextSplitter` (Blind character counting)[cite: 2]
+- **Embedding Model:** `HuggingFaceEmbeddings` (`BAAI/bge-small-en-v1.5`) - Runs 100% locally on CPU to protect proprietary engineering data[cite: 2].
+- **Vector Database:** `Chroma DB` - Runs locally, storing embeddings in a persistent directory without requiring cloud infrastructure[cite: 2].
+- **LLM Inference:** `Groq` (`openai/gpt-oss-20b`) - Delivers lightning-fast, free cloud inference via custom LPU chips[cite: 2].
 
 ---
 
-## Pros and Limitations
+## Setup Instructions
 
-### Pros
+Follow these steps to configure your local environment and run the Version 0.0 pipeline.
 
-- **Zero Infrastructure Cost:** Utilizes free-tier APIs and local models.
-- **Rapid Prototyping:** Extremely fast to deploy; requires less than 50 lines of code to stand up a functional Q&A bot.
-- **Data Privacy (Partial):** By embedding locally with HuggingFace and Chroma, proprietary documents are not sent to third-party APIs during the indexing phase.
-
-### Limitations (The Real-World Challenges)
-
-- **Destruction of Tabular Structure:** `PyPDFLoader` reads left-to-right, ignoring table gridlines. In a PFMEA, this separates the "Process Step" from its "Failure Mode."
-- **Semantic Severing:** `RecursiveCharacterTextSplitter` cuts text arbitrarily every 1,000 characters. It frequently splits critical data rows directly in half, leaving orphaned text segments.
-- **High Hallucination Risk:** Because the LLM receives mashed, unstructured strings rather than coherent parent-child relationships, it struggles to accurately link a specific manufacturing defect to its correct severity rating or detection control.
-- **Lack of Provenance:** The chunks do not retain exact bounding-box coordinates, meaning the system cannot visually cite its sources on the original PDF.
-
----
-
-## Future Scope (Version 1.0)
-
-Version 0.0 proves that standard tutorials fail in enterprise manufacturing contexts. To achieve production-grade accuracy, Version 1.0 will transition from Naive RAG to **Modular RAG**, tackling these limitations directly:
-
-1.  **Vision-Based Parsing:** Replacing `PyPDFLoader` with `LlamaParse` to extract table gridlines and preserve row integrity.
-2.  **Structured JSON Chunking:** Segmenting documents by semantic table rows rather than arbitrary character limits.
-3.  **Cross-Encoder Reranking:** Adding a secondary retrieval layer to aggressively filter out low-relevance chunks before prompt assembly.
+1. **Create the Virtual Environment:** Open your terminal at the project root and create a dedicated virtual environment named `rag-pipeline-venv`.
+   ```bash
+   python -m venv rag-pipeline-venv
