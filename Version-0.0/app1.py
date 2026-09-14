@@ -19,8 +19,6 @@ print("Loading document...\n")
 # Using a relative path with forward slashes (best practice)
 loader = PyPDFLoader("PFMEA-DFMEA-Documents/PFMEA_Rev_01.pdf")
 documents = loader.load()
-# print(documents[0].metadata)
-
 
 #2 CHUNKING: Split text blindly by character count
 print("Chunking text...")
@@ -59,8 +57,6 @@ Question: {question}
 
 Answer:"""
 prompt = PromptTemplate.from_template(template)
-
-print(type(prompt))
 
 #6. GENERATION: Define the free Groq LLM and build the chain
 llm = ChatGroq(
