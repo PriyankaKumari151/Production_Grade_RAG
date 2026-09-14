@@ -1,0 +1,11 @@
+langchain==0.2.16
+langchain-community==0.2.16
+langchain-core==0.2.41
+langchain-chroma==0.1.4
+langchain-groq==0.2.1
+langchain-huggingface==0.1.2
+pypdf==5.1.0
+fonttools==4.54.1
+chromadb==0.5.11
+sentence-transformers==3.3.1
+python-dotenv==1.0.1

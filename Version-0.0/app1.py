@@ -17,7 +17,7 @@ print("Loading document...\n")
 
 #1 PARSING: Extract raw text from the PDF
 # Using a relative path with forward slashes (best practice)
-loader = PyPDFLoader("PFMEA-DFMEA-Documents/PFMEA_Rev_01.pdf")
+loader = PyPDFLoader("../Source-Documents/PFMEA_Rev_01.pdf")
 documents = loader.load()
 
 #2 CHUNKING: Split text blindly by character count
