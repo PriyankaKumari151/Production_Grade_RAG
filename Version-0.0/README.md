@@ -9,7 +9,7 @@ Version 0.0 implements a **Naive RAG** approach. The primary goal of this versio
 ## Architecture Diagram
 
 ![Version 0.0 Architecture Diagram](../assets/RAG-V0-architecture.png)
-*(Note: Replace the path above with the link to your generated architecture diagram)*
+_(Note: Replace the path above with the link to your generated architecture diagram)_
 
 The Version 0.0 pipeline follows a linear, single-pass ingestion and retrieval flow:
 
@@ -34,7 +34,6 @@ This version prioritizes speed, zero-cost tooling, and local data privacy for th
 - **LLM Inference:** `Groq` (`openai/gpt-oss-20b`) - Delivers lightning-fast, free cloud inference via custom LPU chips[cite: 2].
 
 ---
-
 
 # Setup Instructions
 
@@ -222,3 +221,282 @@ __pycache__/
 ```
 
 ---
+
+# Pros
+
+## Zero Infrastructure Cost
+
+The pipeline utilizes:
+
+- Open-source embedding models
+- Local vector storage
+- Free-tier cloud inference
+
+This makes Version 0.0 suitable for experimentation and prototyping without requiring expensive infrastructure.
+
+---
+
+## Rapid Prototyping
+
+A naive RAG architecture can be deployed quickly with relatively little code.
+
+This makes it useful for:
+
+- Proof-of-concept development
+- RAG experimentation
+- Learning retrieval pipelines
+- Establishing a baseline for future versions
+
+---
+
+## Partial Data Privacy
+
+Embedding generation happens locally using Hugging Face.
+
+Therefore, proprietary engineering documents do **not need to be sent to a third-party embedding API** during the indexing process.
+
+> However, retrieved document context is eventually sent to the cloud LLM for generation, so this should not be considered a fully private or air-gapped architecture.
+
+---
+
+# Limitations
+
+Version 0.0 is intentionally naive.
+
+Its purpose is not to provide production-grade accuracy, but rather to establish a baseline and expose the problems that need to be solved in later versions.
+
+## 1. Destruction of Tabular Structure
+
+`PyPDFLoader` extracts text from PDFs without understanding the semantic structure of engineering tables.
+
+For example, a PFMEA table may contain relationships such as:
+
+```text
+Process Step
+     │
+     ├── Failure Mode
+     │       │
+     │       ├── Effect
+     │       ├── Severity
+     │       └── Cause
+     │
+     └── Detection Control
+```
+
+A naive text extractor may instead produce a flattened sequence of text:
+
+```text
+Process Step
+Failure Mode
+Effect
+Severity
+Cause
+Detection Control
+```
+
+The relationships between these fields can be lost.
+
+This can cause the system to incorrectly associate a **Failure Mode** with the wrong **Severity**, **Cause**, or **Detection Control**.
+
+---
+
+## 2. Semantic Severing
+
+`RecursiveCharacterTextSplitter` divides text according to character-based chunk boundaries.
+
+For example:
+
+```text
+Chunk 1
+────────────────────────
+Process Step: Welding
+Failure Mode: Incomplete
+...
+```
+
+```text
+Chunk 2
+────────────────────────
+weld penetration
+Severity: 8
+Detection Control: Visual
+...
+```
+
+A critical engineering record can therefore be split across multiple chunks.
+
+The retriever may retrieve only one half of the information, resulting in incomplete context.
+
+---
+
+## 3. High Hallucination Risk
+
+Because the LLM receives flattened and potentially fragmented text rather than coherent engineering records, it can struggle to correctly establish relationships between:
+
+- Process steps
+- Failure modes
+- Effects
+- Causes
+- Severity ratings
+- Occurrence ratings
+- Detection ratings
+- Detection controls
+
+This increases the risk of incorrect or hallucinated answers.
+
+---
+
+## 4. Lack of Provenance
+
+Version 0.0 does not retain precise document coordinates such as:
+
+- Page numbers
+- Bounding boxes
+- Table coordinates
+- Cell coordinates
+- Original row/column relationships
+
+Consequently, the system cannot reliably provide visual citations pointing back to the exact location of an answer in the original PDF.
+
+---
+
+# Why Version 0.0 Matters
+
+The purpose of Version 0.0 is to establish a **baseline**.
+
+A simple RAG pipeline can appear to work extremely well when tested against clean text documents.
+
+However, automotive manufacturing documents are often highly structured and table-heavy.
+
+For example:
+
+```text
+                    PFMEA
+                      │
+          ┌───────────┴───────────┐
+          │                       │
+    Process Information       Risk Analysis
+          │                       │
+     Process Step             Severity
+     Function                  Occurrence
+     Requirement               Detection
+          │                       │
+          └───────────┬───────────┘
+                      │
+                Control Plan
+```
+
+A naive text-based pipeline can destroy these relationships during PDF extraction and chunking.
+
+Therefore:
+
+> **Retrieval quality is ultimately constrained by the quality and structure of the data being retrieved.**
+
+Version 0.0 makes these limitations visible so that future versions can address them systematically.
+
+---
+
+# Future Scope — Version 1.0
+
+Version 0.0 establishes the baseline.
+
+Version 1.0 will transition from **Naive RAG** toward a more modular and production-oriented architecture.
+
+The primary focus areas are:
+
+## 1. Vision-Based Parsing
+
+Replace basic PDF text extraction with a more structure-aware parsing approach such as:
+
+```text
+LlamaParse
+```
+
+The goal is to preserve:
+
+- Table structure
+- Rows
+- Columns
+- Headers
+- Cell relationships
+- Page-level information
+
+---
+
+## 2. Structured JSON Chunking
+
+Instead of splitting documents arbitrarily based on character count, documents will be transformed into structured representations.
+
+For example:
+
+```json
+{
+  "process_step": "Welding",
+  "failure_mode": "Incomplete weld penetration",
+  "effect": "Structural weakness",
+  "severity": 8,
+  "cause": "Incorrect welding parameters",
+  "detection_control": "Visual inspection"
+}
+```
+
+This allows retrieval to operate on **semantic engineering records** rather than arbitrary text fragments.
+
+---
+
+## 3. Cross-Encoder Reranking
+
+Version 1.0 will introduce a second-stage retrieval process:
+
+```text
+User Query
+    │
+    ▼
+Vector Retrieval
+    │
+    ▼
+Top-K Candidates
+    │
+    ▼
+Cross-Encoder Reranker
+    │
+    ▼
+High-Relevance Context
+    │
+    ▼
+LLM
+```
+
+The reranker will evaluate the relationship between the query and retrieved documents more precisely, filtering out low-relevance chunks before they reach the LLM.
+
+---
+
+# Version Roadmap
+
+| Version    | Architecture   | Primary Goal                                                     |
+| ---------- | -------------- | ---------------------------------------------------------------- |
+| **V0.0**   | Naive RAG      | Establish baseline pipeline                                      |
+| **V1.0**   | Modular RAG    | Preserve structure and improve retrieval                         |
+| **Future** | Production RAG | Accuracy, provenance, evaluation, observability, and scalability |
+
+---
+
+# Key Takeaway
+
+Version 0.0 intentionally demonstrates a fundamental problem with applying generic RAG tutorials to complex engineering documents:
+
+> **The biggest problem is often not the LLM — it is the loss of document structure before retrieval even begins.**
+
+By establishing a naive baseline first, subsequent versions can measure how much each architectural improvement contributes to retrieval accuracy and answer quality.
+
+---
+
+## License
+
+Add your project license here, for example:
+
+```text
+MIT License
+```
+
+if applicable.
