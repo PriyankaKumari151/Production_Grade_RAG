@@ -4,3 +4,4 @@ rag-pipeline-venv
 /PFMEA-DFMEA-Documents/*
 !/PFMEA-DFMEA-Documents/.gitkeep
 /Version-0.0/chroma_db
+assets
