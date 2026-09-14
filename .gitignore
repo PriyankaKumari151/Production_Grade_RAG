@@ -1,7 +1,6 @@
 .env
 FDA-MAUDE
 rag-pipeline
-/PFMEA-DFMEA-Documents
+/PFMEA-DFMEA-Documents/*
+!/PFMEA-DFMEA-Documents/.gitkeep
 chroma_db
-!.gitkeep
-
