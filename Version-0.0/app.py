@@ -1,4 +1,5 @@
 import os
+import uuid
 import tempfile
 from pathlib import Path
 from dotenv import load_dotenv
@@ -12,6 +13,7 @@ from langchain_chroma import Chroma
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
+
 
 #Page Configuration & Environment Setup
 st.set_page_config(
@@ -60,10 +62,19 @@ def process_pdf(file_path: str, embeddings):
     )
     chunks = text_splitter.split_documents(documents)
 
+    #New: Safety check to prevent Chroma from crashing on empty chunks
+    if not chunks:
+        st.error("⚠️ No text could be extracted. The PDF might be image-based (scanned) or corrupted.")
+        st.stop()
+
     #3. EMBEDDING & INDEXING
+    #Generate a unique ID to ensure a completely fresh database
+    unique_collection_name = f"collection_{uuid.uuid4().hex}"
+
     vectorstore = Chroma.from_documents(
         documents=chunks,
-        embedding=embeddings
+        embedding=embeddings,
+        collection_name=unique_collection_name
     )
 
     #4. RETRIEVER SETUP
@@ -84,19 +95,19 @@ def build_rag_chain(retriever, llm):
     Question: {question}
 
     Answer: """
-        prompt = PromptTemplate.from_template(template)
+    prompt = PromptTemplate.from_template(template)
 
-        #6RUNNABLE CHAIN
-        chain = (
-            {
-                "context": retriever,
-                "question": RunnablePassthrough()
-            }
-            | prompt
-            | llm
-            | StrOutputParser()
-        )
-        return chain
+#6RUNNABLE CHAIN
+    chain = (
+        {
+            "context": retriever,
+            "question": RunnablePassthrough()
+        }
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
+    return chain
 
 #----------------------------------------------------------------
 # Streamlit Interface
@@ -105,11 +116,11 @@ st.title("🛡️ Production-Grade RAG: Version 0.0")
 st.caption("Baseline Architecture: PyPDFLoader | Character Chunking | Groq LPU")
 
 #Verify API Key
-if not groq_api_key:
+if not api_key:
     st.error("`GROQ_API_KEY` not detected in '.env'. Please check your configuration.")
     st.stop()
 
-embeddings = load_embeddings()
+embeddings = load_embedding()
 llm = load_llm()
 
 #Intialize Session States
@@ -140,16 +151,20 @@ with st.sidebar:
         if available_files:
             chosen_file = st.selectbox("Available in `Source-Documents/`:",available_files)
             selected_pdf_path = str(source_docs_dir / chosen_file)
+            display_name = chosen_file
         else:
             st.info("No PDFs found in `../Source-Documents/`. You can upload one below.")
     else:
         uploaded_file = st.file_uploader("Upload a PDF document", type=["pdf"])
         if uploaded_file is not None:
-            #Save temporary file so PyPDFLoader can access a file path
-            with tempfile.NamedTemporaryFile(delete = False, suffix=".pdf") as tmp_file:
-                tmp_file.write(uploaded_file.read())
-                selected_pdf_path = tmp_file.name
-    
+            #Bypass tempfile entirely to avoid Windows file-locking quirks
+            display_name = uploaded_file.name
+            selected_pdf_path = "temp_uploaded.pdf"
+
+            #Use getbuffer() which safely reads memory without pointer issues
+            with open(selected_pdf_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+
     #Ingestion Trigger Button
     if st.button("Ingest & Build Index", type="primary", use_container_width=True):
         if not selected_pdf_path:
@@ -158,7 +173,7 @@ with st.sidebar:
             with st.spinner("Processing document through Version 0.0 pipeline..."):
                 retriever, num_pages, num_chunks = process_pdf(selected_pdf_path, embeddings)
                 st.session_state.rag_chain = build_rag_chain(retriever, llm)
-                st.session_state.active_doc = Path(selected_pdf_path).name
+                st.session_state.active_doc = display_name
                 st.session_state.messages = [] #Reset chat on new document
                 st.success(f"Indexed **{num_pages} pages** into **{num_chunks} chunks**!")
 
