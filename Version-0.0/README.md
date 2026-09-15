@@ -9,7 +9,8 @@ Version 0.0 implements a **Naive RAG** approach. The primary goal of this versio
 ## Architecture Diagram
 
 ![Version 0.0 Architecture Diagram](../assets/RAG-V0-architecture.png)
-_(Note: Replace the path above with the link to your generated architecture diagram)_
+
+*(Note: Replace the path above with the link to your generated architecture diagram.)*
 
 The Version 0.0 pipeline follows a linear, single-pass ingestion and retrieval flow:
 
@@ -26,12 +27,24 @@ The Version 0.0 pipeline follows a linear, single-pass ingestion and retrieval f
 
 This version prioritizes speed, zero-cost tooling, and local data privacy for the embeddings.
 
-- **Orchestration Framework:** `LangChain` (v0.2+)[cite: 2]
-- **Document Parsing:** `PyPDFLoader` (Extracts raw, unformatted text coordinates)[cite: 2]
-- **Chunking Strategy:** `RecursiveCharacterTextSplitter` (Blind character counting)[cite: 2]
-- **Embedding Model:** `HuggingFaceEmbeddings` (`BAAI/bge-small-en-v1.5`) - Runs 100% locally on CPU to protect proprietary engineering data[cite: 2].
-- **Vector Database:** `Chroma DB` - Runs locally, storing embeddings in a persistent directory without requiring cloud infrastructure[cite: 2].
-- **LLM Inference:** `Groq` (`openai/gpt-oss-20b`) - Delivers lightning-fast, free cloud inference via custom LPU chips[cite: 2].
+- **User Interface:** `Streamlit` - Provides an interactive, enterprise-grade web application.
+- **Orchestration Framework:** `LangChain` (v0.2+)
+- **Document Parsing:** `PyPDFLoader` (Extracts raw, unformatted text coordinates)
+- **Chunking Strategy:** `RecursiveCharacterTextSplitter` (Blind character counting)
+- **Embedding Model:** `HuggingFaceEmbeddings` (`BAAI/bge-small-en-v1.5`) - Runs 100% locally on CPU to protect proprietary engineering data.
+- **Vector Database:** `Chroma DB` - Runs locally, storing embeddings in a persistent directory without requiring cloud infrastructure.
+- **LLM Inference:** `Groq` (`openai/gpt-oss-20b`) - Delivers lightning-fast, free cloud inference via custom LPU chips.
+
+---
+
+## Enterprise-Level Features in V0.0
+
+Even in our baseline version, we implement core engineering standards to ensure the application is robust, safe, and highly usable:
+
+1. **Resource Caching (`@st.cache_resource`):** The LLM client and embedding models are cached in memory. This prevents the heavy models from reloading on every user interaction, drastically reducing latency and compute overhead.
+2. **Session State Memory:** The UI uses Streamlit's session state to persist chat history and the active LangChain retriever, allowing for continuous back-and-forth conversations without wiping the screen.
+3. **Safe File Handling:** Bypasses notoriously strict Windows OS file locks. Uploaded documents are safely read into memory via byte buffers (`getbuffer()`) and saved to temporary files, preventing `PyPDFLoader` extraction crashes.
+4. **Isolated Vector Collections (Data Contamination Fix):** Whenever a new document is ingested, the system generates a unique identifier (`uuid.uuid4()`) for the Chroma database collection. This guarantees that vector chunks from different PDFs are stored in strictly isolated buckets, preventing the retriever from accidentally pulling answers from previously uploaded documents.
 
 ---
 
@@ -45,8 +58,6 @@ Clone the repository and navigate to the project root:
 git clone <your-repository-url>
 cd Production-grade-RAG
 ```
-
----
 
 ## 2. Create the Virtual Environment
 
@@ -63,8 +74,6 @@ python -m venv rag-pipeline-venv
 ```bash
 python3 -m venv rag-pipeline-venv
 ```
-
----
 
 ## 3. Activate the Virtual Environment
 
@@ -85,8 +94,6 @@ After activation, your terminal should display something similar to:
 ```text
 (rag-pipeline-venv)
 ```
-
----
 
 ## 4. Install Dependencies
 
@@ -116,18 +123,16 @@ On Windows, the output should point to something similar to:
 ...\Production-grade-RAG\rag-pipeline-venv\Scripts\python.exe
 ```
 
----
-
 ## 5. Configure Environment Variables
 
-Create a `.env` file at the **project root**:
+Create a `.env` file at the project root:
 
 ```text
 Production-grade-RAG/
 ├── .env
 ├── Source-Documents/
 ├── Version-0.0/
-│   ├── app1.py
+│   ├── app_ui.py
 │   └── requirements.txt
 └── assets/
     └── RAG-V0-architecture.png
@@ -147,8 +152,6 @@ Add `.env` to your `.gitignore`:
 .env
 ```
 
----
-
 ## 6. Add Source Documents
 
 Place your target PDF documents inside the root-level `Source-Documents` directory.
@@ -167,8 +170,6 @@ The documents can include automotive manufacturing artifacts such as:
 - Process documentation
 - Manufacturing quality documents
 
----
-
 ## 7. Run the Pipeline
 
 Navigate to the Version 0.0 directory:
@@ -177,10 +178,10 @@ Navigate to the Version 0.0 directory:
 cd Version-0.0
 ```
 
-Run the application:
+Run the Streamlit application:
 
 ```bash
-python app1.py
+streamlit run app_ui.py
 ```
 
 ---
@@ -203,13 +204,13 @@ Production-grade-RAG/
 │   └── RAG-V0-architecture.png
 │
 ├── Version-0.0/
-│   ├── app1.py
+│   ├── app_ui.py
 │   └── requirements.txt
 │
 └── rag-pipeline-venv/
 ```
 
-> The virtual environment directory should generally **not be committed to Git**.
+The virtual environment directory should generally not be committed to Git.
 
 Add it to `.gitignore`:
 
@@ -234,8 +235,6 @@ The pipeline utilizes:
 
 This makes Version 0.0 suitable for experimentation and prototyping without requiring expensive infrastructure.
 
----
-
 ## Rapid Prototyping
 
 A naive RAG architecture can be deployed quickly with relatively little code.
@@ -247,15 +246,13 @@ This makes it useful for:
 - Learning retrieval pipelines
 - Establishing a baseline for future versions
 
----
-
 ## Partial Data Privacy
 
 Embedding generation happens locally using Hugging Face.
 
-Therefore, proprietary engineering documents do **not need to be sent to a third-party embedding API** during the indexing process.
+Therefore, proprietary engineering documents do not need to be sent to a third-party embedding API during the indexing process.
 
-> However, retrieved document context is eventually sent to the cloud LLM for generation, so this should not be considered a fully private or air-gapped architecture.
+However, retrieved document context is eventually sent to the cloud LLM for generation, so this should not be considered a fully private or air-gapped architecture.
 
 ---
 
@@ -296,9 +293,7 @@ Detection Control
 
 The relationships between these fields can be lost.
 
-This can cause the system to incorrectly associate a **Failure Mode** with the wrong **Severity**, **Cause**, or **Detection Control**.
-
----
+This can cause the system to incorrectly associate a Failure Mode with the wrong Severity, Cause, or Detection Control.
 
 ## 2. Semantic Severing
 
@@ -327,8 +322,6 @@ A critical engineering record can therefore be split across multiple chunks.
 
 The retriever may retrieve only one half of the information, resulting in incomplete context.
 
----
-
 ## 3. High Hallucination Risk
 
 Because the LLM receives flattened and potentially fragmented text rather than coherent engineering records, it can struggle to correctly establish relationships between:
@@ -343,8 +336,6 @@ Because the LLM receives flattened and potentially fragmented text rather than c
 - Detection controls
 
 This increases the risk of incorrect or hallucinated answers.
-
----
 
 ## 4. Lack of Provenance
 
@@ -362,7 +353,7 @@ Consequently, the system cannot reliably provide visual citations pointing back 
 
 # Why Version 0.0 Matters
 
-The purpose of Version 0.0 is to establish a **baseline**.
+The purpose of Version 0.0 is to establish a baseline.
 
 A simple RAG pipeline can appear to work extremely well when tested against clean text documents.
 
@@ -378,8 +369,8 @@ For example:
     Process Information       Risk Analysis
           │                       │
      Process Step             Severity
-     Function                  Occurrence
-     Requirement               Detection
+     Function                 Occurrence
+     Requirement              Detection
           │                       │
           └───────────┬───────────┘
                       │
@@ -400,7 +391,7 @@ Version 0.0 makes these limitations visible so that future versions can address 
 
 Version 0.0 establishes the baseline.
 
-Version 1.0 will transition from **Naive RAG** toward a more modular and production-oriented architecture.
+Version 1.0 will transition from Naive RAG toward a more modular and production-oriented architecture.
 
 The primary focus areas are:
 
@@ -421,8 +412,6 @@ The goal is to preserve:
 - Cell relationships
 - Page-level information
 
----
-
 ## 2. Structured JSON Chunking
 
 Instead of splitting documents arbitrarily based on character count, documents will be transformed into structured representations.
@@ -440,9 +429,7 @@ For example:
 }
 ```
 
-This allows retrieval to operate on **semantic engineering records** rather than arbitrary text fragments.
-
----
+This allows retrieval to operate on semantic engineering records rather than arbitrary text fragments.
 
 ## 3. Cross-Encoder Reranking
 
@@ -473,11 +460,11 @@ The reranker will evaluate the relationship between the query and retrieved docu
 
 # Version Roadmap
 
-| Version    | Architecture   | Primary Goal                                                     |
-| ---------- | -------------- | ---------------------------------------------------------------- |
-| **V0.0**   | Naive RAG      | Establish baseline pipeline                                      |
-| **V1.0**   | Modular RAG    | Preserve structure and improve retrieval                         |
-| **Future** | Production RAG | Accuracy, provenance, evaluation, observability, and scalability |
+| Version | Architecture | Primary Goal |
+|---|---|---|
+| V0.0 | Naive RAG | Establish baseline pipeline |
+| V1.0 | Modular RAG | Preserve structure and improve retrieval |
+| Future | Production RAG | Accuracy, provenance, evaluation, observability, and scalability |
 
 ---
 
@@ -491,12 +478,10 @@ By establishing a naive baseline first, subsequent versions can measure how much
 
 ---
 
-## License
+# License
 
-Add your project license here, for example:
-
-```text
 MIT License
-```
 
-if applicable.
+---
+
+<FollowUp label="Ready to advance to Version 1.0?" query="The V0.0 README is complete. Let's start building Version 1.0 focusing on vision-based parsing with LlamaParse."/>

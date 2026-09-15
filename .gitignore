@@ -4,3 +4,4 @@ rag-pipeline-venv
 /Source-Documents/*
 !/Source-Documents/.gitkeep
 /Version-0.0/chroma_db
+temp_uploaded.pdf
