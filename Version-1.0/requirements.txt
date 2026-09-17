@@ -13,3 +13,4 @@ lxml
 groq
 python-dotenv
 requests
+sentence-transformers
