@@ -1,18 +1,24 @@
 import os
+import markdown
 import uuid
+import pandas as pd
 import nest_asyncio
+from io import StringIO
 from pathlib import Path
 from dotenv import load_dotenv
 
 import streamlit as st
 from llama_parse import LlamaParse
 from langchain_text_splitters import MarkdownHeaderTextSplitter,RecursiveCharacterTextSplitter
+from langchain_text_splitters import CharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
+
+from app_helper import process_pfmea_to_chunks
 
 #Apply asyncio patch (Required for LlamaParse to run inside streamlit)
 nest_asyncio.apply()
@@ -22,9 +28,16 @@ nest_asyncio.apply()
 #--------------------------------------------------------
 st.set_page_config(
     page_title="Production RAG - Version 1.0",
-    page_icon="👁️"
+    page_icon="👁️",
     layout="wide"
 )
+
+#------------------------------------------------
+# Streamlit Interface 
+#----------------------------------------------------
+st.title("👁️ Production-Grade RAG: Version 1.0")
+st.caption("Architecture: LlamaParse (Vision) | Semantic Markdown Chunking | ChromaDB | Groq")
+
 
 load_dotenv()
 groq_api_key = os.getenv("GROQ_API_KEY")
@@ -40,7 +53,7 @@ def load_embedding():
 @st.cache_resource(show_spinner="Connecting to Groq LPU inference engine...")
 def load_llm():
     return ChatGroq(
-        model="openai/gpt-oss-20b",
+        model="openai/gpt-oss-120b",
         temperature=0.0,
         api_key=groq_api_key
     )
@@ -60,6 +73,8 @@ def process_pdf_v1(file_path: str, embeddings):
     parser = LlamaParse(
         api_key=llama_api_key,
         result_type="markdown",
+        premium_mode=True,
+        parsing_instruction="Extract all tables precisely as they appear. Do not merge cells visually. If a cell spans multiple rows in the document, leave the cell blank in the subsequent rows.",
         verbose=True
     )
 
@@ -67,27 +82,30 @@ def process_pdf_v1(file_path: str, embeddings):
     llama_docs = parser.load_data(file_path)
 
     #Combine the parsed pages into a single Markdown string
-    full_markdown_text = "\n\n".join([doc.text for doc in llama_docs])
+    raw_markdown = "\n\n".join([doc.text for doc in llama_docs])
+
+    # ---------------------------------------------------------
+    # THE V1.1 FIX: Repair the merged cells before chunking!
+    # ---------------------------------------------------------
+    full_structured_text = process_pfmea_to_chunks(raw_markdown)
+
+    #NEW DEBUGGING BLOCK: Display the raw Markdown in the UI
+    with st.expander("👀 View Raw LlamaParse Markdown Output", expanded=False):
+        st.code(full_structured_text, language="markdown")
 
     #2. SEMANTIC CHUNKING
-    # Step A: Split logically by Markdown headers (keeps sections/tables together)
-    headers_to_split_on = [
-        ("#", "Header 1"),
-        ("##", "Header 2"),
-        ("###", "Header 3"),
-    ]
-    markdown_splitter = MarkdownHeaderTextSplitter(
-        headers_to_split_on=header_to_split_on,
-        strip_headers=False
+    text_splitter = CharacterTextSplitter(
+        separator="===CHUNK_BOUNDARY===",
+        chunk_size=8000, # Set high enough to safely hold the largest possible chunk
+        chunk_overlap=0, # Overlap is now 0 because each block is 100% self-contained
+        is_separator_regex=False
     )
-    md_header_splits = markdown.splitter.split_text(full_markdown_text)
+    
+    # LangChain splitters expect a list of documents or strings
+    chunks = text_splitter.create_documents([full_structured_text])
 
-    #Step B: Fallback split for massive sections that still exceed context limits
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200
-    )
-    chunks = text_Splitter.split_documents(ms_header_splits)
+    # Remove empty chunks created by trailing separators
+    chunks = [c for c in chunks if c.page_content.strip()]
 
     if not chunks:
         st.error("⚠️ No text could be extracted. Please check the PDF.")
@@ -98,29 +116,35 @@ def process_pdf_v1(file_path: str, embeddings):
 
     vectorstore = Chroma.from_documents(
         documents=chunks,
-        embeddings=embeddings,
+        embedding=embeddings,
         collection_name=unique_collection_name
     )
 
     #4. RETRIEVER SETUP
     retriever = vectorstore.as_retriever(
         search_type="similarity",
-        search_kwargs={"k": 5}
+        search_kwargs={"k": 7}
     )
 
     return retriever, len(llama_docs), len(chunks)
 
 def build_rag_chain(retriever, llm):
-    #5. PROMPT ORCHESTRATION
-    template = """Use the following pieces of retrieved context to answer the question.
-    If the context contains tables, extract the data carefully across the rows.
-    Tf you don't know the answer, just say you don't know.
+    # 5. PROMPT ORCHESTRATION
+    template = """You are an expert manufacturing engineering assistant analyzing PFMEA documents.
+    
+     Use the following retrieved context to answer the user's question. 
+    
+     CRITICAL INSTRUCTIONS:
+     1. EXHAUSTIVE EXTRACTION: If a Failure Mode spans multiple rows, or has multiple Causes/Controls, you MUST list ALL of them. Do not stop at the first one you find. Scan the entire retrieved context.
+     2. Read the columns carefully: Do not confuse a "Cause" with an "Effect" or a "Failure Mode".
+     3. Only use the provided context. If the document does not mention it, do not guess or say "in practice".
+    
+     Context: {context}
 
-    Context: {context}
+     Question: {question}
 
-    Qustion: {question}
-
-    Answer:"""
+     Answer:"""""
+    
     prompt = PromptTemplate.from_template(template)
 
     chain = (
@@ -138,11 +162,11 @@ def build_rag_chain(retriever, llm):
 #---------------------------------------------------------
 
 #Verify API Keys
-if not groq_Api_key or not llama_api_key:
+if not groq_api_key or not llama_api_key:
     st.error("⚠️ `GROQ_API_KEY` OR `LLAMA_CLOUD_API_KEY` missing from `.env`.")
     st.stop()
 
-embeddings = load_embeddings()
+embeddings = load_embedding()
 llm = load_llm()
 
 #Intialize Session States
@@ -161,7 +185,7 @@ with st.sidebar:
     selected_pdf_path = None
     display_name = None
 
-    if uplaoded_file is not None:
+    if uploaded_file is not None:
         display_name = uploaded_file.name
         selected_pdf_path = "temp_uploaded_v1.pdf"
 
@@ -170,7 +194,7 @@ with st.sidebar:
             f.write(uploaded_file.getbuffer())
 
     #Ingestion Trigger Button
-    if st.button("Extract Tables & Build Index", type="primary", use_conatiner_width=True):
+    if st.button("Extract Tables & Build Index", type="primary", use_container_width=True):
         if not selected_pdf_path:
             st.warning("Please upload a PDF first.")
         else:
@@ -183,7 +207,7 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("### ✨ v1.0 Upgrades")
-    st.success("✔️ **Vision Parsing:** Tables extracted as perfect Markdown grids. \n\n✔️ **Semantic Chunking:** Text is split logically by document header, keeping rows together.")
+    st.success("✔️ **Vision Parsing:** Tables extracted as perfect Markdown grids.\n\n✔️ **Semantic Chunking:** Text is split logically by document header, keeping rows together.")
 
 #---------------------------------------------------------
 # Chat Interface
@@ -207,4 +231,4 @@ else:
                 st.markdown(response)
 
             st.session_state.messages.append({"role": "assistant", "content": response})
-            
+

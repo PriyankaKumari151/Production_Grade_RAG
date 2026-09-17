@@ -1,0 +1,12 @@
+streamlit
+langchain
+langchain-core
+langchain-text-splitters
+chromadb
+llama-parse
+pandas
+markdown
+lxml
+groq
+python-dotenv
+requests

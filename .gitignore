@@ -5,3 +5,6 @@ rag-pipeline-venv
 !/Source-Documents/.gitkeep
 /Version-0.0/chroma_db
 temp_uploaded.pdf
+temp_uploaded_v1.pdf
+groq_models.py
+__pycache__
