@@ -1,0 +1,16 @@
+streamlit
+langchain
+langchain-core
+langchain-text-splitters
+langchain-huggingface
+langchain_groq
+langchain-chroma
+chromadb
+llama-parse
+pandas
+markdown
+lxml
+groq
+python-dotenv
+requests
+sentence-transformers
