@@ -1,15 +1,10 @@
 import os
-import markdown
 import uuid
-import pandas as pd
 import nest_asyncio
-from io import StringIO
-from pathlib import Path
 from dotenv import load_dotenv
 
 import streamlit as st
 from llama_parse import LlamaParse
-from langchain_text_splitters import MarkdownHeaderTextSplitter,RecursiveCharacterTextSplitter
 from langchain_text_splitters import CharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
@@ -74,7 +69,8 @@ def process_pdf_v1(file_path: str, embeddings):
         api_key=llama_api_key,
         result_type="markdown",
         premium_mode=True,
-        parsing_instruction="Extract all tables precisely as they appear. Do not merge cells visually. If a cell spans multiple rows in the document, leave the cell blank in the subsequent rows.",
+        parsing_instruction="Extract all tables precisely as they appear. Do not merge cells visually.\
+         If a cell spans multiple rows in the document, leave the cell blank in the subsequent rows.",      ##In newer SDK versions it is replaced by user_prompt
         verbose=True
     )
 
@@ -84,9 +80,9 @@ def process_pdf_v1(file_path: str, embeddings):
     #Combine the parsed pages into a single Markdown string
     raw_markdown = "\n\n".join([doc.text for doc in llama_docs])
 
-    # ---------------------------------------------------------
-    # THE V1.1 FIX: Repair the merged cells before chunking!
-    # ---------------------------------------------------------
+    # -------------------------------------------------------------------------------------
+    # THE V1.1 FIX: Repair the merged cells before chunking!            (The essence of V1)
+    # -------------------------------------------------------------------------------------
     full_structured_text = process_pfmea_to_chunks(raw_markdown)
 
     #NEW DEBUGGING BLOCK: Display the raw Markdown in the UI
@@ -181,7 +177,7 @@ if "active_doc" not in st.session_state:
 with st.sidebar:
     st.header("📂 Document Selection")
 
-    uploaded_file = st.file_uploader("Upload an Engineering PDF (PFMA, MAUDE, etc.)", type=["pdf"])
+    uploaded_file = st.file_uploader("Upload an Engineering PDF (PFMEA, DFMEA, etc.)", type=["pdf"])
     selected_pdf_path = None
     display_name = None
 
