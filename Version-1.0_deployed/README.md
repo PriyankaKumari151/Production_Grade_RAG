@@ -1,6 +1,20 @@
 # Production-Grade Engineering RAG Pipeline (PFMEA Document Intelligence)
 
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://enterprise-rag-v1-live.streamlit.app/)
+
 An enterprise-grade Retrieval-Augmented Generation (RAG) system designed to parse, structure, and query complex, multi-page engineering documents — specifically Process Failure Mode and Effects Analysis (PFMEA) tables — with absolute data fidelity.
+
+---
+
+## 🚀 Live Demo
+You can access and interact with the deployed application directly here:
+👉 [**Enterprise RAG Version 1.0 Live App**](https://enterprise-rag-v1-live.streamlit.app/)
+
+---
+
+## 📁 Sample PFMEA Documents for Testing
+Want to experiment with the application right away? You can download sample engineering PFMEA PDFs to upload and test out the parsing engine from the link below:
+👉 [**Download Sample PFMEA Input Files**](https://drive.google.com/drive/folders/1Bq39D98MZKmiWsgHdM9xeuQFeVtoz6gY?usp=drive_link)
 
 ---
 
